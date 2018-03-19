@@ -39,7 +39,11 @@ class DiscourseParser(object):
         parse_file = '%s/parses.json' % data_dir
         parse = json.load(codecs.open(parse_file, encoding='utf8'))
 
-        relation_dicts = [json.loads(x) for x in open(relation_file)]
+        relation_dicts = []
+        for line in codecs.open(relation_file, 'r', encoding='utf8'):
+            if line.startswith('\x1b[?1034h'):
+                line = line[8:]
+            relation_dicts.append(json.loads(line))
 
         output = codecs.open('%s/output.json' % output_dir, 'wb', encoding ='utf8')
         random.seed(10)
@@ -64,9 +68,11 @@ if __name__ == '__main__':
     input_run = sys.argv[3]
     output_dir = sys.argv[4]
     if language == 'en':
-        valid_senses = validator.EN_SENSES
+        #valid_senses = validator.EN_SENSES
+        valid_senses = ['Expansion.Conjunction']  # force most common class
     elif language == 'zh':
-        valid_senses = validator.ZH_SENSES
+        #valid_senses = validator.ZH_SENSES
+        valid_senses = ['Conjunction']  # force most common class
     parser = DiscourseParser()
     parser.classify_sense(input_dataset, output_dir, valid_senses)
 
