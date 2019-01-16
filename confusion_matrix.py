@@ -82,6 +82,23 @@ class ConfusionMatrix(object):
             f1 = 0.0
         return (precision, recall, f1)
 
+    def get_ssi_for_i(self, i):
+        """Compute sensitivity/recall, specificity, and informedness/Youden statistic."""
+        tp = self.matrix[i,i]
+        tn = sum(sum(self.matrix)) - sum(self.matrix[i,:]) - sum(self.matrix[:,i]) + self.matrix[i,i]
+        fp = sum(self.matrix[i,:]) - self.matrix[i,i]
+        fn = sum(self.matrix[:,i]) - self.matrix[i,i]
+        if (tp + fn) == 0:
+            sensitivity = 1.0
+        else:
+            sensitivity = tp / (tp + fn)  #= TP / (TP + FN)
+        if (tn + fp) == 0:
+            specificity = 1.0
+        else:
+            specificity = tn / (tn + fp)  #= TN / (TN + FP)
+        informedness = sensitivity + specificity - 1.0
+        return sensitivity, specificity, informedness
+
     def get_prf_for_all(self):
         """Compute precision, recall, and f1 score for all indexes."""
 
@@ -101,6 +118,7 @@ class ConfusionMatrix(object):
         return self.get_prf_for_i(i)
 
     def compute_micro_average_f1(self):
+        """Compute micro-averaged precision, recall, and F1 score."""
         total_correct = 0.0
         for i in xrange(self.alphabet.size()):
             total_correct += self.matrix[i,i]
@@ -123,6 +141,26 @@ class ConfusionMatrix(object):
         else:
             f1_score = 0.0
         return (round(precision, 4), round(recall, 4), round(f1_score,4))
+
+    def compute_micro_average_informedness(self):
+        """Compute micro-averaged sensitivity/recall, specificity, and informedness/Youden statistic."""
+        tp = tn = fp = fn = 0
+        for i in xrange(self.alphabet.size()):
+            tp += self.matrix[i,i]
+            tn += sum(sum(self.matrix)) - sum(self.matrix[i,:]) - sum(self.matrix[:,i]) + self.matrix[i,i]
+            fp += sum(self.matrix[i,:]) - self.matrix[i,i]
+            fn += sum(self.matrix[:,i]) - self.matrix[i,i]
+
+        if (tp + fn) == 0:
+            sensitivity = 1.0
+        else:
+            sensitivity = tp / (tp + fn)  #= TP / (TP + FN)
+        if (tn + fp) == 0:
+            specificity = 1.0
+        else:
+            specificity = tn / (tn + fp)  #= TN / (TN + FP)
+        informedness = sensitivity + specificity - 1.0
+        return sensitivity, specificity, informedness
 
     def compute_average_f1(self):
         precision, recall, f1 = self.get_prf_for_all()
@@ -165,12 +203,15 @@ class ConfusionMatrix(object):
         print("row = predicted, column = truth")
         print(matrix_to_string(rows, header))
 
-    def print_summary(self):
+    def print_summary(self, with_prf=True, with_ssi=False):
 
         precision = numpy.zeros(self.alphabet.size())
         recall = numpy.zeros(self.alphabet.size())
         f1 = numpy.zeros(self.alphabet.size())
-        
+        sensitivity = numpy.zeros(self.alphabet.size())
+        specificity = numpy.zeros(self.alphabet.size())
+        informedness = numpy.zeros(self.alphabet.size())
+
         max_len = 0
         for i in xrange(self.alphabet.size()):
             label = self.alphabet.get_label(i)
@@ -182,16 +223,27 @@ class ConfusionMatrix(object):
         # compute precision, recall, and f1
         for i in xrange(self.alphabet.size()):
             precision[i], recall[i], f1[i] = self.get_prf_for_i(i)
+            sensitivity[i], specificity[i], informedness[i] = self.get_ssi_for_i(i)
             correct += self.matrix[i,i]
             label = self.alphabet.get_label(i)
             if label != self.NEGATIVE_CLASS:
                 space = ' ' * (max_len - len(label) + 1)
-                lines.append( '%s%s precision %1.4f\trecall %1.4f\tF1 %1.4f' %\
-                    (label, space, precision[i], recall[i], f1[i]))
+                line = '%s%s ' % (label, space)
+                if with_prf:
+                    line += 'precision %1.4f\trecall %1.4f\tF1 %1.4f' % (precision[i], recall[i], f1[i])
+                if with_ssi:
+                    line += '\tsensitivity %1.4f\tspecificity %1.4f\tinformedness %1.4f' % (sensitivity[i], specificity[i], informedness[i])
+                lines.append(line)
         precision, recall, f1 = self.compute_micro_average_f1()
-        space = ' ' * (max_len - 14 + 1)
-        lines.append('*Micro-Average%s precision %1.4f\trecall %1.4f\tF1 %1.4f' %\
-            (space, numpy.mean(precision), numpy.mean(recall), numpy.mean(f1)))
+        sensitivity, specificity, informedness = self.compute_micro_average_informedness()
+        label = '*Micro-Average'
+        space = ' ' * (max_len - len(label) + 1)
+        line = '%s%s ' % (label, space)
+        if with_prf:
+            line += 'precision %1.4f\trecall %1.4f\tF1 %1.4f' % (precision, recall, f1)
+        if with_ssi:
+            line += '\tsensitivity %1.4f\tspecificity %1.4f\tinformedness %1.4f' % (sensitivity, specificity, informedness)
+        lines.append(line)
         #lines.sort()
         print('\n'.join(lines))
 
