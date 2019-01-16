@@ -141,7 +141,8 @@ class ConfusionMatrix(object):
         rows = []
         #putting labels to the first column of rhw matrix
         for i in xrange(num_classes):
-            row = [self.alphabet.get_label(i)] + [str(self.matrix[i,j]) for j in xrange(num_classes)]
+            #row = [self.alphabet.get_label(i)] + [str(self.matrix[i,j]) for j in xrange(num_classes)]
+            row = [self.alphabet.get_label(i)] + [str(self.matrix[i,j]) + ('*' if i == j else '') for j in xrange(num_classes)]
             rows.append(row)
         print("row = predicted, column = truth")
         print(matrix_to_string(rows, header))
@@ -173,7 +174,7 @@ class ConfusionMatrix(object):
         space = ' ' * (max_len - 14 + 1)
         lines.append('*Micro-Average%s precision %1.4f\trecall %1.4f\tF1 %1.4f' %\
             (space, numpy.mean(precision), numpy.mean(recall), numpy.mean(f1)))
-        lines.sort()
+        #lines.sort()
         print('\n'.join(lines))
 
     def print_out(self):

@@ -26,6 +26,8 @@ def evaluate(gold_list, predicted_list):
     print('Overall parser performance --------------')
     precision, recall, f1 = sense_cm.compute_micro_average_f1()
     print('Precision %1.4f Recall %1.4f F1 %1.4f' % (precision, recall, f1))
+    print('Confusion matrix --------------')
+    sense_cm.print_matrix()
     return connective_cm, arg1_cm, arg2_cm, rel_arg_cm, sense_cm, precision, recall, f1
 
 
@@ -142,10 +144,14 @@ def evaluate_sense(gold_list, predicted_list):
     """
     sense_alphabet = Alphabet()
     valid_senses = validator.identify_valid_senses(gold_list)
+    all_senses = set()
     for relation in gold_list:
         sense = relation['Sense'][0]
         if sense in valid_senses:
-            sense_alphabet.add(sense)
+            #sense_alphabet.add(sense)
+            all_senses.add(sense)
+    for sense in sorted(all_senses):  # sorted alphabet
+        sense_alphabet.add(sense)
 
     sense_alphabet.add(ConfusionMatrix.NEGATIVE_CLASS)
 
@@ -162,16 +168,25 @@ def evaluate_sense(gold_list, predicted_list):
                     sense_cm.add(predicted_sense, predicted_sense)
                 else:
                     if not sense_cm.alphabet.has_label(predicted_sense):
+                        print("!! negative: match and predicted sense not in alphabet ({}, {})".format(gold_relation['ID'], predicted_sense))
                         predicted_sense = ConfusionMatrix.NEGATIVE_CLASS
                     sense_cm.add(predicted_sense, gold_sense)
             else:
+                print("!! negative: no match for gold relation ({}, {})".format(gold_relation['ID'], gold_relation['Sense']))
                 sense_cm.add(ConfusionMatrix.NEGATIVE_CLASS, gold_sense)
+        else:
+            pass
+            print("!! negative: gold sense not in alphabet ({}, {})".format(gold_relation['ID'], gold_sense))
 
     for i, predicted_relation in enumerate(predicted_list):
         if i not in predicted_to_gold_map:
             predicted_sense = predicted_relation['Sense'][0]
             if not sense_cm.alphabet.has_label(predicted_sense):
+                print("!! negative: no match and predicted sense not in alphabet ({}, {})".format(predicted_relation['ID'], predicted_sense))
                 predicted_sense = ConfusionMatrix.NEGATIVE_CLASS
+            else:
+                pass
+                print("!! negative: no match for predicted relation ({}, {})".format(predicted_relation['ID'], predicted_relation['Sense']))
             sense_cm.add(predicted_sense, ConfusionMatrix.NEGATIVE_CLASS)
     return sense_cm
 
