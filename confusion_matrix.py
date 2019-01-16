@@ -135,6 +135,7 @@ class ConfusionMatrix(object):
                 round(numpy.mean(f1), 4))
 
     def print_matrix(self):
+        """Print confusion matrix for sense labels."""
         num_classes = self.alphabet.size()
         #header for the confusion matrix
         header = [' '] + [self.alphabet.get_label(i) for i in xrange(num_classes)]
@@ -144,6 +145,23 @@ class ConfusionMatrix(object):
             #row = [self.alphabet.get_label(i)] + [str(self.matrix[i,j]) for j in xrange(num_classes)]
             row = [self.alphabet.get_label(i)] + [str(self.matrix[i,j]) + ('*' if i == j else '') for j in xrange(num_classes)]
             rows.append(row)
+        print("row = predicted, column = truth")
+        print(matrix_to_string(rows, header))
+
+    def print_matrix_with_pr(self):
+        """Print confusion matrix with precision and recall for sense labels."""
+        num_classes = self.alphabet.size()
+        #header for the confusion matrix
+        header = [' '] + [self.alphabet.get_label(i) for i in xrange(num_classes)] + ['__PRECISION__']
+        precisions, recalls, _ = self.get_prf_for_all()
+        rows = []
+        #putting labels to the first column of rhw matrix
+        for i in xrange(num_classes):
+            #row = [self.alphabet.get_label(i)] + [str(self.matrix[i,j]) for j in xrange(num_classes)]
+            row = [self.alphabet.get_label(i)] + ["%d" % (self.matrix[i,j],) + ('*' if i == j else '') for j in xrange(num_classes)] + ["%1.4f" % (precisions[i],)]
+            rows.append(row)
+        row = ['__RECALL__'] + ["%1.4f" % (recalls[i],) for i in xrange(num_classes)] + [' ']
+        rows.append(row)
         print("row = predicted, column = truth")
         print(matrix_to_string(rows, header))
 

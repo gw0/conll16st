@@ -27,7 +27,8 @@ def evaluate(gold_list, predicted_list):
     precision, recall, f1 = sense_cm.compute_micro_average_f1()
     print('Precision %1.4f Recall %1.4f F1 %1.4f' % (precision, recall, f1))
     print('Confusion matrix --------------')
-    sense_cm.print_matrix()
+    #sense_cm.print_matrix()
+    sense_cm.print_matrix_with_pr()
     return connective_cm, arg1_cm, arg2_cm, rel_arg_cm, sense_cm, precision, recall, f1
 
 
