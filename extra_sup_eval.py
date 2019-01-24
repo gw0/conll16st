@@ -18,10 +18,10 @@ def use_gold_standard_types(sorted_gold_relations, sorted_predicted_relations):
         pr['Type'] = gr['Type']
 
 
-def extra_evaluate(gold_list, predicted_list):
+def extra_evaluate(gold_list, predicted_list, sense_cm_prefix=None):
     connective_cm = evaluate_connectives(gold_list, predicted_list)
     arg1_cm, arg2_cm, rel_arg_cm = evaluate_argument_extractor(gold_list, predicted_list)
-    sense_cm = evaluate_sense(gold_list, predicted_list)
+    sense_cm = evaluate_sense(gold_list, predicted_list, use_valid_senses=True)
     brier_one, brier_all = evaluate_sense_proba(gold_list, predicted_list)
 
     print('Argument extraction --------------')
@@ -35,6 +35,14 @@ def extra_evaluate(gold_list, predicted_list):
     print('Confusion matrix --------------')
     #sense_cm.print_matrix()
     sense_cm.print_matrix_with_pr()
+
+    if sense_cm_prefix is not None:
+        try:
+            sense_cm.plot(pdfname=sense_cm_prefix + "_unnorm.pdf", normalize_axis=None)
+            sense_cm.plot(pdfname=sense_cm_prefix + "_norm-true.pdf", normalize_axis=0)
+            sense_cm.plot(pdfname=sense_cm_prefix + "_norm-predict.pdf", normalize_axis=1)
+        except:
+            print("!! warn: unable to PDF plot sense_cm")
 
     print('Overall parser performance --------------')
     precision, recall, f1 = sense_cm.compute_micro_average_f1()
@@ -67,7 +75,7 @@ def evaluate_sense_proba(gold_list, predicted_list):
         if i in gold_to_predicted_map:  # match
             predicted_relation = gold_to_predicted_map[i]
 
-            # use only valid sense labels
+            # use only valid sense labels (those that appear in predicted probabilities)
             gold_senses = []
             for t in gold_relation['Sense']:
                 if t in predicted_relation['SenseProba'].keys():
@@ -106,6 +114,7 @@ def evaluate_sense_proba(gold_list, predicted_list):
 def main(args):
     input_dataset = args[1]
     input_run = args[2]
+    output_dir = args[3]
 
     gold_relations = [json.loads(x) for x in open('%s/relations.json' % input_dataset)]
     predicted_relations = [json.loads(x) for x in open('%s/output_proba.json' % input_run)]
@@ -126,17 +135,17 @@ def main(args):
     use_gold_standard_types(gold_relations, predicted_relations)
 
     print('\nEvaluation for all discourse relations')
-    extra_evaluate(gold_relations, predicted_relations)
+    extra_evaluate(gold_relations, predicted_relations, sense_cm_prefix="%s/extra_sense_cm_all" % (output_dir,))
 
     print('\nEvaluation for explicit discourse relations only')
     explicit_gold_relations = [x for x in gold_relations if x['Type'] == 'Explicit']
     explicit_predicted_relations = [x for x in predicted_relations if x['Type'] == 'Explicit']
-    extra_evaluate(explicit_gold_relations, explicit_predicted_relations)
+    extra_evaluate(explicit_gold_relations, explicit_predicted_relations, sense_cm_prefix="%s/extra_sense_cm_exp" % (output_dir,))
 
     print('\nEvaluation for non-explicit discourse relations only (Implicit, EntRel, AltLex)')
     non_explicit_gold_relations = [x for x in gold_relations if x['Type'] != 'Explicit']
     non_explicit_predicted_relations = [x for x in predicted_relations if x['Type'] != 'Explicit']
-    extra_evaluate(non_explicit_gold_relations, non_explicit_predicted_relations)
+    extra_evaluate(non_explicit_gold_relations, non_explicit_predicted_relations, sense_cm_prefix="%s/extra_sense_cm_non" % (output_dir,))
 
 
 if __name__ == '__main__':

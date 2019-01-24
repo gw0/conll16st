@@ -133,7 +133,7 @@ def connective_head_matching(gold_raw_connective, predicted_raw_connective):
         gold_head_connective_indices = [gold_token_indices[x] for x in indices]
         return set(gold_head_connective_indices).issubset(set(predicted_token_list))
 
-def evaluate_sense(gold_list, predicted_list):
+def evaluate_sense(gold_list, predicted_list, use_valid_senses=False):
     """Evaluate sense classifier
 
     The label ConfusionMatrix.NEGATIVE_CLASS is for the relations 
@@ -142,12 +142,14 @@ def evaluate_sense(gold_list, predicted_list):
     """
     sense_alphabet = Alphabet()
     valid_senses = validator.identify_valid_senses(gold_list)
-    all_senses = set()
-    for relation in gold_list:
-        sense = relation['Sense'][0]
-        if sense in valid_senses:
-            #sense_alphabet.add(sense)
-            all_senses.add(sense)
+    if use_valid_senses:  # use all valid senses for a language
+        all_senses = valid_senses
+    else:  # only use valid senses that appear in gold dataset
+        all_senses = set()
+        for relation in gold_list:
+            sense = relation['Sense'][0]
+            if sense in valid_senses:
+                all_senses.add(sense)
     for sense in sorted(all_senses):  # sorted alphabet
         sense_alphabet.add(sense)
 

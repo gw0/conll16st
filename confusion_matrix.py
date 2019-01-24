@@ -172,39 +172,41 @@ class ConfusionMatrix(object):
                 round(numpy.mean(recall), 4),
                 round(numpy.mean(f1), 4))
 
-    def print_matrix(self):
+    def print_matrix(self, mark_diag='*'):
         """Print confusion matrix for sense labels."""
         num_classes = self.alphabet.size()
         #header for the confusion matrix
         header = [' '] + [self.alphabet.get_label(i) for i in xrange(num_classes)]
-        rows = []
         #putting labels to the first column of rhw matrix
+        rows = []
         for i in xrange(num_classes):
-            #row = [self.alphabet.get_label(i)] + [str(self.matrix[i,j]) for j in xrange(num_classes)]
-            row = [self.alphabet.get_label(i)] + [str(self.matrix[i,j]) + ('*' if i == j else '') for j in xrange(num_classes)]
+            row = [self.alphabet.get_label(i)] + [str(self.matrix[i,j]) + (mark_diag if i == j else '') for j in xrange(num_classes)]
             rows.append(row)
         print("row = predicted, column = truth")
         print(matrix_to_string(rows, header))
 
-    def print_matrix_with_pr(self):
+    def print_matrix_with_pr(self, mark_diag='*'):
         """Print confusion matrix with precision and recall for sense labels."""
         num_classes = self.alphabet.size()
-        #header for the confusion matrix
-        header = [' '] + [self.alphabet.get_label(i) for i in xrange(num_classes)] + ['__PRECISION__']
         precisions, recalls, _ = self.get_prf_for_all()
-        rows = []
+        total_true = numpy.sum(self.matrix, axis=0)
+        total_pred = numpy.sum(self.matrix, axis=1)
+        #header for the confusion matrix
+        header = [' '] + [self.alphabet.get_label(i) for i in xrange(num_classes)] + ['__TOTAL__', '__PRECISION__']
         #putting labels to the first column of rhw matrix
+        rows = []
         for i in xrange(num_classes):
-            #row = [self.alphabet.get_label(i)] + [str(self.matrix[i,j]) for j in xrange(num_classes)]
-            row = [self.alphabet.get_label(i)] + ["%d" % (self.matrix[i,j],) + ('*' if i == j else '') for j in xrange(num_classes)] + ["%1.4f" % (precisions[i],)]
+            row = [self.alphabet.get_label(i)] + ["%d" % (self.matrix[i,j],) + (mark_diag if i == j else '') for j in xrange(num_classes)] + ["%d" % (total_pred[i],), "%1.4f" % (precisions[i],)]
             rows.append(row)
-        row = ['__RECALL__'] + ["%1.4f" % (recalls[i],) for i in xrange(num_classes)] + [' ']
+        row = ['__TOTAL__'] + ["%d" % (total_true[i],) for i in xrange(num_classes)] + ['', '']
+        rows.append(row)
+        row = ['__RECALL__'] + ["%1.4f" % (recalls[i],) for i in xrange(num_classes)] + ['', '']
         rows.append(row)
         print("row = predicted, column = truth")
         print(matrix_to_string(rows, header))
 
     def print_summary(self, with_prf=True, with_ssi=False):
-
+        """Print summary of with PRF and/or SSI."""
         precision = numpy.zeros(self.alphabet.size())
         recall = numpy.zeros(self.alphabet.size())
         f1 = numpy.zeros(self.alphabet.size())
@@ -220,7 +222,7 @@ class ConfusionMatrix(object):
 
         lines = []
         correct = 0.0
-        # compute precision, recall, and f1
+        # prepare summary lines
         for i in xrange(self.alphabet.size()):
             precision[i], recall[i], f1[i] = self.get_prf_for_i(i)
             sensitivity[i], specificity[i], informedness[i] = self.get_ssi_for_i(i)
@@ -229,9 +231,9 @@ class ConfusionMatrix(object):
             if label != self.NEGATIVE_CLASS:
                 space = ' ' * (max_len - len(label) + 1)
                 line = '%s%s ' % (label, space)
-                if with_prf:
+                if with_prf:  # print precision, recall, and f1
                     line += 'precision %1.4f\trecall %1.4f\tF1 %1.4f' % (precision[i], recall[i], f1[i])
-                if with_ssi:
+                if with_ssi:  # print sensitivity, specificity, informedness
                     line += '\tsensitivity %1.4f\tspecificity %1.4f\tinformedness %1.4f' % (sensitivity[i], specificity[i], informedness[i])
                 lines.append(line)
         precision, recall, f1 = self.compute_micro_average_f1()
@@ -239,9 +241,9 @@ class ConfusionMatrix(object):
         label = '*Micro-Average'
         space = ' ' * (max_len - len(label) + 1)
         line = '%s%s ' % (label, space)
-        if with_prf:
+        if with_prf:  # print precision, recall, and f1
             line += 'precision %1.4f\trecall %1.4f\tF1 %1.4f' % (precision, recall, f1)
-        if with_ssi:
+        if with_ssi:  # print sensitivity, specificity, informedness
             line += '\tsensitivity %1.4f\tspecificity %1.4f\tinformedness %1.4f' % (sensitivity, specificity, informedness)
         lines.append(line)
         #lines.sort()
@@ -251,7 +253,37 @@ class ConfusionMatrix(object):
         """Printing out confusion matrix along with Macro-F1 score"""
         self.print_matrix()
         self.print_summary()
-    
+
+    def plot(self, pdfname, normalize_axis=0, cmap=None):
+        """Plot confusion matrix to PDF.
+
+          pip install matplotlib
+          apt-get install python-tk
+        """
+        import matplotlib
+        matplotlib.use('Agg')  # do not use any Xwindows backend
+        import matplotlib.pyplot as plt
+
+        labels = [ self.alphabet.get_label(i)  for i in range(self.alphabet.size()) ]
+        if normalize_axis is None:
+            cm = self.matrix
+        else:
+            true_sums = numpy.sum(self.matrix, axis=normalize_axis, keepdims=True)
+            cm = numpy.divide(self.matrix, true_sums, out=numpy.zeros_like(self.matrix), where=(true_sums != 0.))
+
+        plt.figure(figsize=(0.65 * len(labels), 0.65 * len(labels)))
+        plt.imshow(cm, interpolation="nearest", cmap=cmap or plt.cm.Blues)
+        plt.title("Confusion matrix")
+        plt.colorbar()
+        tick_marks = numpy.arange(len(labels))
+        plt.xticks(tick_marks, labels, rotation=90)
+        plt.yticks(tick_marks, labels)
+        plt.tight_layout()
+        plt.ylabel("Predicted label")
+        plt.xlabel("True label")
+
+        plt.savefig(pdfname, bbox_inches='tight')
+
 
 def matrix_to_string(matrix, header=None):
     """
